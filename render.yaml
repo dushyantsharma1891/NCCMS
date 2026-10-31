@@ -1,0 +1,35 @@
+# Render Blueprint — one web service that serves both the API and the website.
+# Render dashboard → New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: nccms
+    runtime: node
+    plan: free              # change to "starter" to avoid the free plan's idle sleep
+    region: singapore       # closest Render region to India
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: NODE_ENV
+        value: production
+      # --- you are asked for these two when you create the Blueprint ---------
+      - key: MONGO_URI              # MongoDB Atlas connection string (…/nccms)
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD   # password for the first Super Admin (10+ chars)
+        sync: false
+      # --- generated / defaults ---------------------------------------------
+      - key: JWT_SECRET             # Render invents a long random value
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: SUPER_ADMIN_EMAIL
+        value: superadmin@nccms.gov.in
+      - key: AUTO_SEED              # create departments + Super Admin on first start
+        value: "true"
+      - key: SEED_DEMO_DATA         # keep "false": demo accounts have public passwords
+        value: "false"
+      - key: AUTO_CLOSE_HOURS
+        value: "42"

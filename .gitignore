@@ -4,3 +4,6 @@ dist/
 .env
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+.env.*
+!.env.example

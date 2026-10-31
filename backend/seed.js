@@ -156,9 +156,15 @@ const categories = [
   'Encroachment', 'Emergency', 'Missing Person', 'Harassment', 'Tax', 'Billing', 'Other',
 ];
 
-const run = async () => {
-  await connectDB();
-
+// Seeds reference data (departments, categories, leadership) and the Super
+// Admin. Safe to run repeatedly. Used by `npm run seed` AND by the server on
+// first start when AUTO_SEED=true (so a fresh Render + Atlas deployment gets
+// its Super Admin without needing a shell).
+//   demo: also create the demo Admin / Officers / Citizen. These have KNOWN
+//         passwords, so they are for local development only — never on a
+//         public deployment.
+const seedDatabase = async ({ demo = true, superAdminEmail = 'superadmin@nccms.gov.in', superAdminPassword = 'SuperAdmin@123' } = {}) => {
+  const result = { createdSuperAdmin: false };
   console.log('Seeding departments...');
   for (const d of departments) {
     await Department.findOneAndUpdate({ name: d.name }, d, { upsert: true, new: true, setDefaultsOnInsert: true });
@@ -187,104 +193,110 @@ const run = async () => {
   }
 
   console.log('Seeding Super Admin...');
-  const superAdminEmail = 'superadmin@nccms.gov.in';
   const existingSuperAdmin = await User.findOne({ role: 'super_admin' });
   if (!existingSuperAdmin) {
     await User.create({
       name: 'National System Super Admin',
-      email: superAdminEmail,
-      password: 'SuperAdmin@123',
+      email: String(superAdminEmail).trim().toLowerCase(),
+      password: superAdminPassword,
       role: 'super_admin',
     });
-    console.log(`Created Super Admin -> email: ${superAdminEmail} / password: SuperAdmin@123`);
+    result.createdSuperAdmin = true;
+    console.log(demo
+      ? `Created Super Admin -> email: ${superAdminEmail} / password: ${superAdminPassword}`
+      : `Created Super Admin -> email: ${superAdminEmail} (password taken from SUPER_ADMIN_PASSWORD)`);
   } else {
     console.log('A Super Admin already exists (only one allowed), skipping.');
   }
   const superAdmin = existingSuperAdmin || (await User.findOne({ role: 'super_admin' }));
 
-  console.log('Seeding a demo Admin (ADM-0001)...');
-  const adminEmail = 'admin@nccms.gov.in';
-  const existingAdmin = await User.findOne({ email: adminEmail });
-  if (!existingAdmin) {
-    await User.create({
-      name: 'Demo Admin',
-      email: adminEmail,
-      password: 'Admin@123',
-      role: 'admin',
-      adminId: 'ADM-0001',
-      createdBy: superAdmin?._id,
-    });
-    console.log(`Created demo admin -> email: ${adminEmail} / password: Admin@123`);
-  } else {
-    console.log('Demo admin already exists, skipping.');
-  }
+  if (demo) {
+    console.log('Seeding a demo Admin (ADM-0001)...');
+    const adminEmail = 'admin@nccms.gov.in';
+    const existingAdmin = await User.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      await User.create({
+        name: 'Demo Admin',
+        email: adminEmail,
+        password: 'Admin@123',
+        role: 'admin',
+        adminId: 'ADM-0001',
+        createdBy: superAdmin?._id,
+      });
+      console.log(`Created demo admin -> email: ${adminEmail} / password: Admin@123`);
+    } else {
+      console.log('Demo admin already exists, skipping.');
+    }
 
-  console.log('Seeding a sample officer (Police department)...');
-  const policeDept = await Department.findOne({ name: 'Police' });
-  const officerEmail = 'officer.police@nccms.gov.in';
-  const existingOfficer = await User.findOne({ email: officerEmail });
-  if (!existingOfficer && policeDept) {
-    await User.create({
-      name: 'Police Officer Demo',
-      email: officerEmail,
-      password: 'Officer@123',
-      role: 'officer',
-      department: policeDept._id,
-      employeeId: 'POL-0001',
-      approvalStatus: 'approved',
-      isActive: true,
-      state: 'Uttar Pradesh',
-      district: 'Mathura',
-      createdBy: existingAdmin?._id,
-    });
-    console.log(`Created demo officer -> email: ${officerEmail} / password: Officer@123`);
-  } else {
-    console.log('Demo officer already exists or Police dept missing, skipping.');
-  }
+    console.log('Seeding a sample officer (Police department)...');
+    const policeDept = await Department.findOne({ name: 'Police' });
+    const officerEmail = 'officer.police@nccms.gov.in';
+    const existingOfficer = await User.findOne({ email: officerEmail });
+    if (!existingOfficer && policeDept) {
+      await User.create({
+        name: 'Police Officer Demo',
+        email: officerEmail,
+        password: 'Officer@123',
+        role: 'officer',
+        department: policeDept._id,
+        employeeId: 'POL-0001',
+        approvalStatus: 'approved',
+        isActive: true,
+        state: 'Uttar Pradesh',
+        district: 'Mathura',
+        createdBy: existingAdmin?._id,
+      });
+      console.log(`Created demo officer -> email: ${officerEmail} / password: Officer@123`);
+    } else {
+      console.log('Demo officer already exists or Police dept missing, skipping.');
+    }
 
-  console.log('Seeding a second demo officer (Municipal Corporation)...');
-  const municipalDept = await Department.findOne({ name: 'Municipal Corporation' });
-  const officer2Email = 'officer.municipal@nccms.gov.in';
-  const existingOfficer2 = await User.findOne({ email: officer2Email });
-  if (!existingOfficer2 && municipalDept) {
-    await User.create({
-      name: 'Municipal Officer Demo',
-      email: officer2Email,
-      password: 'Officer@123',
-      role: 'officer',
-      department: municipalDept._id,
-      employeeId: 'MUN-0001',
-      approvalStatus: 'approved',
-      isActive: true,
-      state: 'Uttar Pradesh',
-      district: 'Mathura',
-      scopeState: 'Uttar Pradesh',
-      scopeDistrict: 'Mathura', // demonstrates a district-scoped officer — only sees Mathura complaints
-      createdBy: existingAdmin?._id,
-    });
-    console.log(`Created demo officer -> email: ${officer2Email} / password: Officer@123`);
-  } else {
-    console.log('Second demo officer already exists or Municipal dept missing, skipping.');
-  }
+    console.log('Seeding a second demo officer (Municipal Corporation)...');
+    const municipalDept = await Department.findOne({ name: 'Municipal Corporation' });
+    const officer2Email = 'officer.municipal@nccms.gov.in';
+    const existingOfficer2 = await User.findOne({ email: officer2Email });
+    if (!existingOfficer2 && municipalDept) {
+      await User.create({
+        name: 'Municipal Officer Demo',
+        email: officer2Email,
+        password: 'Officer@123',
+        role: 'officer',
+        department: municipalDept._id,
+        employeeId: 'MUN-0001',
+        approvalStatus: 'approved',
+        isActive: true,
+        state: 'Uttar Pradesh',
+        district: 'Mathura',
+        scopeState: 'Uttar Pradesh',
+        scopeDistrict: 'Mathura', // demonstrates a district-scoped officer — only sees Mathura complaints
+        createdBy: existingAdmin?._id,
+      });
+      console.log(`Created demo officer -> email: ${officer2Email} / password: Officer@123`);
+    } else {
+      console.log('Second demo officer already exists or Municipal dept missing, skipping.');
+    }
 
-  console.log('Seeding a demo citizen...');
-  const citizenEmail = 'citizen.demo@nccms.gov.in';
-  const existingCitizen = await User.findOne({ email: citizenEmail });
-  if (!existingCitizen) {
-    await User.create({
-      name: 'Demo Citizen',
-      email: citizenEmail,
-      password: 'Citizen@123',
-      role: 'citizen',
-      citizenId: 'CIT-000001',
-      state: 'Uttar Pradesh',
-      district: 'Mathura',
-      address: 'Sample Address, Mathura',
-      pincode: '281001',
-    });
-    console.log(`Created demo citizen -> email: ${citizenEmail} / password: Citizen@123`);
+    console.log('Seeding a demo citizen...');
+    const citizenEmail = 'citizen.demo@nccms.gov.in';
+    const existingCitizen = await User.findOne({ email: citizenEmail });
+    if (!existingCitizen) {
+      await User.create({
+        name: 'Demo Citizen',
+        email: citizenEmail,
+        password: 'Citizen@123',
+        role: 'citizen',
+        citizenId: 'CIT-000001',
+        state: 'Uttar Pradesh',
+        district: 'Mathura',
+        address: 'Sample Address, Mathura',
+        pincode: '281001',
+      });
+      console.log(`Created demo citizen -> email: ${citizenEmail} / password: Citizen@123`);
+    } else {
+      console.log('Demo citizen already exists, skipping.');
+    }
   } else {
-    console.log('Demo citizen already exists, skipping.');
+    console.log('Skipping demo accounts (production mode).');
   }
 
   console.log('Seeding site settings (national leadership + emblems)...');
@@ -298,11 +310,28 @@ const run = async () => {
   console.log('Site settings ready. Super Admin can edit leadership photos/dates and per-state emblems from Settings.');
 
   console.log('Seed complete.');
-  await mongoose.connection.close();
-  process.exit(0);
+  return result;
 };
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = { seedDatabase };
+
+// `npm run seed` — local / one-off use.
+if (require.main === module) {
+  (async () => {
+    await connectDB();
+    const production = process.env.NODE_ENV === 'production';
+    const demo = production ? process.env.SEED_DEMO_DATA === 'true' : process.env.SEED_DEMO_DATA !== 'false';
+    const opts = { demo };
+    if (!demo) {
+      if (!process.env.SUPER_ADMIN_PASSWORD) throw new Error('Set SUPER_ADMIN_PASSWORD (and optionally SUPER_ADMIN_EMAIL) before seeding a production database.');
+      opts.superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'superadmin@nccms.gov.in';
+      opts.superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
+    }
+    await seedDatabase(opts);
+    await mongoose.connection.close();
+    process.exit(0);
+  })().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -1,0 +1,12 @@
+{
+  "name": "nccms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "National Citizen Complaint Management System — backend + frontend, deployable as one service",
+  "engines": { "node": ">=20.19.0" },
+  "scripts": {
+    "build": "npm install --include=dev --prefix frontend && npm run build --prefix frontend && npm install --omit=dev --prefix backend",
+    "start": "node backend/server.js",
+    "seed": "npm run seed --prefix backend"
+  }
+}

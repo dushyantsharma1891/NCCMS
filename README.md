@@ -10,6 +10,10 @@
 - **Rank-based home pages:** Citizen, Officer, Admin and Super Admin each get their own colour banner, live stats and shortcuts.
 - **Extras:** notification bell with unread count in the top bar, and a stricter rule that Officers can never Reject/Close.
 
+## Deploying online (Render + MongoDB Atlas)
+
+See **[DEPLOY.md](DEPLOY.md)** for the step-by-step guide. In short: create a free Atlas cluster, push the project to GitHub, then in Render choose *New → Blueprint* (it reads `render.yaml`) and enter your `MONGO_URI` and a Super Admin password. One service serves both the API and the website; uploaded images are kept in MongoDB; the first start seeds the departments and Super Admin automatically (no public demo accounts).
+
 ## Latest additions (About page, officer scope, false complaints)
 
 - **About page — national leadership in rank order:** President (Rank 1) → Prime Minister (Rank 2) → **Cabinet Secretary, an IAS officer and head of the civil services (Rank 3)** → other senior officials such as the Home Secretary. Each card shows photo, designation, IAS batch/cadre, "in office since" and tenure. The Super Admin can edit all of it (and add more senior officials) in **Settings**. The page also explains the political vs permanent executive and how responsibility flows on NCCMS.
